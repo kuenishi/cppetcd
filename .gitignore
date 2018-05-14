@@ -1,5 +1,7 @@
 # Prerequisites
 *.d
+*~
+test_runner
 
 # Compiled Object files
 *.slo

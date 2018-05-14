@@ -1,0 +1,9 @@
+[submodule "etcd"]
+	path = etcd
+	url = git://github.com/coreos/etcd
+[submodule "protobuf"]
+	path = protobuf
+	url = git://github.com/gogo/protobuf
+[submodule "googleapis"]
+	path = googleapis
+	url = git://github.com/googleapis/googleapis

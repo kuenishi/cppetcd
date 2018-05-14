@@ -1,0 +1,52 @@
+.PHONY: all clean pb test
+
+TEST_SOURCES=$(wildcard test/*.cc)
+
+TEST_RUNNER=test_runner
+TEST_OBJECTS=$(TEST_SOURCES:.cc=.o)
+CC_OBJECTS=cppetcd.o src/etcd/etcdserver/etcdserverpb/rpc.pb.o src/etcd/etcdserver/etcdserverpb/rpc.grpc.pb.o \
+src/gogoproto/gogo.pb.o src/google/api/http.pb.o src/google/api/annotations.pb.o \
+src/etcd/auth/authpb/auth.pb.o src/etcd/mvcc/mvccpb/kv.pb.o
+CC_TARGET=libcppetcd.so
+
+INCLUDES=`pkg-config --cflags protobuf grpc++ grpc` -I./src
+CXXFLAGS += $(INCLUDES) -g -std=c++11 -fPIC
+
+LIBS=`pkg-config --libs protobuf grpc++ grpc`
+LDFLAGS=$(LIBS) -lgrpc++_reflection -ldl -g -lglog
+
+all: ${CC_TARGET}
+
+${CC_TARGET}: ${CC_OBJECTS}
+	$(CXX) $(LDFLAGS) $(CXXFLAGS) $(CC_OBJECTS) -shared -o $@ 
+
+test: ${TEST_RUNNER}
+	@echo "To run test, locally-running etcd is required."
+	LD_LIBRARY_PATH=. ./$<
+
+${TEST_RUNNER}: ${TEST_OBJECTS} $(CC_TARGET)
+	${CXX} ${TEST_OBJECTS} -o $@ -L. -lcppetcd  -lgtest $(LDFLAGS)
+
+clean:
+	-rm -rvf *.pb.h *.pb.cc
+	-rm -f $(CC_OBJECTS) $(TEST_OBJECTS)
+
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -I. -c -o $@ $<
+
+PROTOC_OPT=--proto_path=protobuf \
+	--proto_path=googleapis \
+	--proto_path=. \
+	--cpp_out=src
+#	--dependency_out=pb.mk \
+
+pb:
+	git submodule init
+	git submodule update
+	protoc $(PROTOC_OPT) etcd/etcdserver/etcdserverpb/rpc.proto
+	protoc $(PROTOC_OPT) protobuf/gogoproto/gogo.proto
+	protoc $(PROTOC_OPT) etcd/mvcc/mvccpb/kv.proto
+	protoc $(PROTOC_OPT) etcd/auth/authpb/auth.proto
+	protoc $(PROTOC_OPT) etcd/mvcc/mvccpb/kv.proto
+	protoc $(PROTOC_OPT) google/api/annotations.proto
+	protoc $(PROTOC_OPT) google/api/http.proto

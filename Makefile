@@ -1,10 +1,10 @@
-.PHONY: all clean pb test
+.PHONY: all clean pb test install
 
 TEST_SOURCES=$(wildcard test/*.cc)
 
 TEST_RUNNER=test_runner
 TEST_OBJECTS=$(TEST_SOURCES:.cc=.o)
-CC_OBJECTS=cppetcd.o src/etcd/etcdserver/etcdserverpb/rpc.pb.o src/etcd/etcdserver/etcdserverpb/rpc.grpc.pb.o \
+CC_OBJECTS=src/cppetcd.o src/etcd/etcdserver/etcdserverpb/rpc.pb.o src/etcd/etcdserver/etcdserverpb/rpc.grpc.pb.o \
 src/gogoproto/gogo.pb.o src/google/api/http.pb.o src/google/api/annotations.pb.o \
 src/etcd/auth/authpb/auth.pb.o src/etcd/mvcc/mvccpb/kv.pb.o
 CC_TARGET=libcppetcd.so
@@ -22,7 +22,7 @@ ${CC_TARGET}: ${CC_OBJECTS}
 
 test: ${TEST_RUNNER}
 	@echo "To run test, locally-running etcd is required."
-	LD_LIBRARY_PATH=. ./$<
+	LD_LIBRARY_PATH=. ./$< --gmock_verbose=info --gtest_stack_trace_depth=10
 
 ${TEST_RUNNER}: ${TEST_OBJECTS} $(CC_TARGET)
 	${CXX} ${TEST_OBJECTS} -o $@ -L. -lcppetcd  -lgtest $(LDFLAGS)
@@ -31,14 +31,19 @@ clean:
 	-rm -rvf *.pb.h *.pb.cc
 	-rm -f $(CC_OBJECTS) $(TEST_OBJECTS)
 
+install: ${CC_TARGET}
+	install -D ${CC_TARGET} $(prefix)/lib/${CC_TARGET}
+	install -D cppetcd.h $(prefix)/include/cppetcd.h
+## TODO: install protobuf headers here too
+
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -I. -c -o $@ $<
 
 PROTOC_OPT=--proto_path=protobuf \
+	--plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin \
 	--proto_path=googleapis \
 	--proto_path=. \
 	--cpp_out=src
-#	--dependency_out=pb.mk \
 
 pb:
 	git submodule init

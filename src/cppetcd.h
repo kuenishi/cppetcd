@@ -23,7 +23,7 @@ namespace etcd {
     grpc::Status Put(const std::string& key, const std::string& value, long long rev,
                      bool ephemeral=true);
     grpc::Status Delete(const std::string& key, long long rev);
-    grpc::Status List(const std::string& prefix, std::vector<std::string>&);
+    grpc::Status List(const std::string& prefix, std::vector<std::pair<std::string, std::string>>&);
 
     // Wait is also needed, but can be replaced with periodic polling for my use case.
     // Someday someone wraps it.

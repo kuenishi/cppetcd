@@ -79,8 +79,6 @@ namespace etcd {
     etcdserverpb::RangeResponse res;
     req.set_key(key);
     req.set_limit(1);
-    //req.set_range_end(key);
-    //req.set_lease(lease_id_); // temporary...
     grpc::Status status = stub->Range(&context, req, &res);
     if (not status.ok()) {
       std::cerr << status.error_message() << std::endl;
@@ -116,9 +114,38 @@ namespace etcd {
   grpc::Status Client::Delete(const std::string& key, long long rev){
     return UNINPLEMENTED_STATUS;
   }
-  grpc::Status Client::List(const std::string& prefix, std::vector<std::string>& out){
-    return UNINPLEMENTED_STATUS;
+  grpc::Status Client::List(const std::string& prefix,
+                            std::vector<std::pair<std::string, std::string>>& out){
+    if (Connected()) {
+      //failed to connect
+      return UNAVAILABLE_STATUS;
+    }
     
+    std::shared_ptr<etcdserverpb::KV::Stub> stub = etcdserverpb::KV::NewStub(channel_);
+    grpc::ClientContext context;
+    etcdserverpb::RangeRequest req;
+    etcdserverpb::RangeResponse res;
+    req.set_key(prefix);
+    std::string end = prefix;
+    end.push_back(0xFF);
+    req.set_range_end(end);
+
+    grpc::Status status = stub->Range(&context, req, &res);
+    if (not status.ok()) {
+      std::cerr << status.error_message() << std::endl;
+    }
+    std::cerr << res.count() << std::endl;
+
+    out.clear();
+    for (auto kv : res.kvs()) {
+      std::cerr << kv.key() << " " << kv.value() << std::endl;
+      out.push_back(std::pair<std::string, std::string>(kv.key(), kv.value()));
+    }
+    if (res.more()) {
+      //....
+    }
+    // no key found.
+    return status;
   }
   // As this is a synchronous API and returns when keepalive failed
   grpc::Status Client::KeepAlive(bool forever) {

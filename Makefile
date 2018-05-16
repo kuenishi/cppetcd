@@ -33,7 +33,7 @@ clean:
 
 install: ${CC_TARGET}
 	install -D ${CC_TARGET} $(prefix)/lib/${CC_TARGET}
-	install -D cppetcd.h $(prefix)/include/cppetcd.h
+	install -D src/cppetcd.h $(prefix)/include/cppetcd.h
 ## TODO: install protobuf headers here too
 
 %.o: %.cc

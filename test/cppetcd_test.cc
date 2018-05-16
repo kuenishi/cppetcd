@@ -29,8 +29,8 @@ namespace {
     grpc::Status status;
     status = client.Connect();
     ASSERT_TRUE(status.ok());
-    ASSERT_TRUE(client.KeepAlive().ok());
-    ASSERT_TRUE(client.Put("hoge", "val", 0).ok());
+    ASSERT_TRUE(client.KeepAlive(false).ok());
+    ASSERT_TRUE(client.Put("hoge", "val", 0, true).ok());
     std::string value;
     long long rev = 0;
     ASSERT_TRUE(client.Get("hoge", value, &rev).ok());

@@ -60,6 +60,7 @@ namespace etcd {
   }
   grpc::Status Client::Disconnect(){
     state_ = DISCONNECTED;
+    channel_ = std::shared_ptr<grpc::ChannelInterface>(nullptr);
     return grpc::Status::OK;
   }
   bool Client::Connected() const {
@@ -91,7 +92,7 @@ namespace etcd {
       return status;
     }
     // no key found.
-    return status;
+    return grpc::Status(grpc::StatusCode::NOT_FOUND, "No key found");
   }
   grpc::Status Client::Put(const std::string& key, const std::string& value, long long rev,
                            bool ephemeral){
@@ -179,7 +180,7 @@ namespace etcd {
       // std::cerr << "ok" <<       res.id()         << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(res.ttl() * 1000 / 2));
 
-    } while (forever);
+    } while (forever && state_ == CONNECTED);
     return Disconnect();
   }
 

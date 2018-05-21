@@ -39,13 +39,16 @@ install: ${CC_TARGET}
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -I. -c -o $@ $<
 
+PROTOC_GRPC_CPP_PLUGIN=`which grpc_cpp_plugin`
+
 PROTOC_OPT=--proto_path=protobuf \
-	--plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin \
+	--plugin=protoc-gen-grpc=$(PROTOC_GRPC_CPP_PLUGIN) \
 	--proto_path=googleapis \
 	--proto_path=. \
-	--cpp_out=src
+	--cpp_out=src --grpc_out=src
 
 pb:
+	@echo grpc_cpp_plugin=$(PROTOC_GRPC_CPP_PLUGIN)
 	git submodule init
 	git submodule update
 	protoc $(PROTOC_OPT) etcd/etcdserver/etcdserverpb/rpc.proto

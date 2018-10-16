@@ -22,6 +22,8 @@ $ which grpc_cpp_plugin
 ```
 $ git clone git://github.com/kuenishi/cppetcd
 ...
+$ cd cppetcd
+$ make pb
 $ make -j
 $ make test
 $ sudo make install prefix=/opt/local

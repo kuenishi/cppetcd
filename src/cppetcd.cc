@@ -1,6 +1,8 @@
 #include "cppetcd.h"
 #include "etcd/etcdserver/etcdserverpb/rpc.pb.h"
 #include "etcd/etcdserver/etcdserverpb/rpc.grpc.pb.h"
+#include "etcd/etcdserver/api/v3lock/v3lockpb/v3lock.pb.h"
+#include "etcd/etcdserver/api/v3lock/v3lockpb/v3lock.grpc.pb.h"
 
 #include <ctime>
 #include <thread>
@@ -64,13 +66,13 @@ namespace etcd {
     return grpc::Status::OK;
   }
   bool Client::Connected() const {
-    unsigned long timeout_exceed = lease_limit_ - now();
-    return (not channel_) && state_ == CONNECTED && (timeout_exceed > 0);
+    long timeout_exceed = lease_limit_ - now();
+    return (not channel_) && state_ == CONNECTED && (timeout_exceed < 0);
   }
 
     // put/get
   grpc::Status Client::Get(const std::string& key, std::string& value, long long * rev){
-    if (Connected()) {
+    if (not Connected()) {
       //failed to connect
       return UNAVAILABLE_STATUS;
     }
@@ -96,7 +98,7 @@ namespace etcd {
   }
   grpc::Status Client::Put(const std::string& key, const std::string& value, long long rev,
                            bool ephemeral){
-    if (Connected()) {
+    if (not Connected()) {
       //failed to connect
       return UNAVAILABLE_STATUS;
     }
@@ -117,7 +119,7 @@ namespace etcd {
   }
   grpc::Status Client::List(const std::string& prefix,
                             std::vector<std::pair<std::string, std::string>>& out){
-    if (Connected()) {
+    if (not Connected()) {
       //failed to connect
       return UNAVAILABLE_STATUS;
     }
@@ -148,9 +150,47 @@ namespace etcd {
     // no key found.
     return status;
   }
+
+  grpc::Status Client::Lock(const std::string& name, std::string& key){
+    if (not Connected()) {
+      //failed to connect
+      return UNAVAILABLE_STATUS;
+    }
+    
+    std::unique_ptr<v3lockpb::Lock::Stub> stub = v3lockpb::Lock::NewStub(channel_);
+    grpc::ClientContext context;
+    v3lockpb::LockRequest req;
+    v3lockpb::LockResponse res;
+    req.set_name(name);
+    req.set_lease(lease_id_);
+
+    /// Blocks until somebody holds lock, possibly?
+    grpc::Status status = stub->Lock(&context, req, &res);
+    if (status.ok()) {
+      key = res.key();
+    }
+    return status;
+  }
+  grpc::Status Client::Unlock(const std::string& key){
+    if (not Connected()) {
+      //failed to connect
+      return UNAVAILABLE_STATUS;
+    }
+
+    std::unique_ptr<v3lockpb::Lock::Stub> stub = v3lockpb::Lock::NewStub(channel_);
+    grpc::ClientContext context;
+    v3lockpb::UnlockRequest req;
+    v3lockpb::UnlockResponse res;
+    req.set_key(key);
+
+    grpc::Status status = stub->Unlock(&context, req, &res);
+    return status;
+}
+
+  
   // As this is a synchronous API and returns when keepalive failed
   grpc::Status Client::KeepAlive(bool forever) {
-    if (Connected()) {
+    if (not Connected()) {
       //failed to connect
       return UNAVAILABLE_STATUS;
     }

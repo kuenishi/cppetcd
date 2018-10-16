@@ -1,3 +1,9 @@
+# Protobuf generated files
+*.pb.h
+*.grpc.pb.h
+*.pb.cc
+*.grpc.pb.cc
+
 # Prerequisites
 *.d
 *~

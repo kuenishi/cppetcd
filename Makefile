@@ -52,6 +52,7 @@ pb:
 	git submodule init
 	git submodule update
 	protoc $(PROTOC_OPT) etcd/etcdserver/etcdserverpb/rpc.proto
+	protoc $(PROTOC_OPT) etcd/etcdserver/api/v3lock/v3lockpb/v3lock.proto
 	protoc $(PROTOC_OPT) protobuf/gogoproto/gogo.proto
 	protoc $(PROTOC_OPT) etcd/mvcc/mvccpb/kv.proto
 	protoc $(PROTOC_OPT) etcd/auth/authpb/auth.proto

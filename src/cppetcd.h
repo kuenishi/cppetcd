@@ -24,8 +24,9 @@ namespace etcd {
     grpc::Status Delete(const std::string& key, long long rev);
     grpc::Status List(const std::string& prefix, std::vector<std::pair<std::string, std::string>>&);
 
-    grpc::Status Lock(const std::string& name, std::string& key);
+    grpc::Status Lock(const std::string& name, unsigned int timeout_ms);
     grpc::Status Unlock(const std::string& name);
+    bool HasLock(const std::string& name);
     // Wait is also needed, but can be replaced with periodic polling for my use case.
     // Someday someone wraps it.
     grpc::Status KeepAlive(bool forever=true);
@@ -37,6 +38,8 @@ namespace etcd {
     std::vector<std::string> hosts_;
     std::shared_ptr<grpc::ChannelInterface> channel_;
     enum state { DISCONNECTED, CONNECTED } state_;;
+
+    std::map<std::string, std::string> lock_keys_;
   };
 
   // returns current epoch time in milliseconds from monotonic clock

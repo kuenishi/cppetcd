@@ -151,7 +151,7 @@ namespace etcd {
     return status;
   }
 
-  grpc::Status Client::Lock(const std::string& name, std::string& key){
+  grpc::Status Client::Lock(const std::string& name, unsigned int timeout_ms){
     if (not Connected()) {
       //failed to connect
       return UNAVAILABLE_STATUS;
@@ -159,6 +159,9 @@ namespace etcd {
     
     std::unique_ptr<v3lockpb::Lock::Stub> stub = v3lockpb::Lock::NewStub(channel_);
     grpc::ClientContext context;
+    // https://grpc.io/blog/deadlines
+    std::chrono::system_clock::time_point deadline = std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms);
+    context.set_deadline(deadline);
     v3lockpb::LockRequest req;
     v3lockpb::LockResponse res;
     req.set_name(name);
@@ -167,26 +170,35 @@ namespace etcd {
     /// Blocks until somebody holds lock, possibly?
     grpc::Status status = stub->Lock(&context, req, &res);
     if (status.ok()) {
-      key = res.key();
+      lock_keys_[name] = res.key();
+      //} else if (status.error_code() == StatusCode::DEADLINE_EXCEEDED) { // OK but lock not acquired!
+      // status = Status(StatusCode::OK, "Timeout: lock might be acquired by other");
     }
     return status;
   }
-  grpc::Status Client::Unlock(const std::string& key){
+  grpc::Status Client::Unlock(const std::string& name){
     if (not Connected()) {
       //failed to connect
       return UNAVAILABLE_STATUS;
     }
+    auto pair = lock_keys_.find(name);
+    if (pair == lock_keys_.end()) {
+      return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "No lock acquired");
+    }
+    lock_keys_.erase(name);
 
     std::unique_ptr<v3lockpb::Lock::Stub> stub = v3lockpb::Lock::NewStub(channel_);
     grpc::ClientContext context;
     v3lockpb::UnlockRequest req;
+    req.set_key(pair->second);
     v3lockpb::UnlockResponse res;
-    req.set_key(key);
 
     grpc::Status status = stub->Unlock(&context, req, &res);
     return status;
-}
-
+  }
+  bool Client::HasLock(const std::string& name) {
+    return lock_keys_.find(name) != lock_keys_.end();
+  }
   
   // As this is a synchronous API and returns when keepalive failed
   grpc::Status Client::KeepAlive(bool forever) {

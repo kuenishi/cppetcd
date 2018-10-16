@@ -70,6 +70,10 @@ namespace etcd {
     return (not channel_) && state_ == CONNECTED && (timeout_exceed < 0);
   }
 
+  long long Client::LeaseId() const {
+    return lease_id_;
+  };
+  
     // put/get
   grpc::Status Client::Get(const std::string& key, std::string& value, long long * rev){
     if (not Connected()) {

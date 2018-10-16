@@ -16,6 +16,8 @@ namespace etcd {
     grpc::Status Disconnect();
     bool Connected() const ;
 
+    long long LeaseId() const;
+    
     // only single key with exact match, returning version
     grpc::Status Get(const std::string& key, std::string& value, long long * rev);
     // overwrite any key

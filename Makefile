@@ -56,6 +56,5 @@ pb:
 	protoc $(PROTOC_OPT) protobuf/gogoproto/gogo.proto
 	protoc $(PROTOC_OPT) etcd/mvcc/mvccpb/kv.proto
 	protoc $(PROTOC_OPT) etcd/auth/authpb/auth.proto
-	protoc $(PROTOC_OPT) etcd/mvcc/mvccpb/kv.proto
 	protoc $(PROTOC_OPT) google/api/annotations.proto
 	protoc $(PROTOC_OPT) google/api/http.proto

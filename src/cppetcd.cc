@@ -3,6 +3,8 @@
 #include "etcd/etcdserver/etcdserverpb/rpc.grpc.pb.h"
 #include "etcd/etcdserver/api/v3lock/v3lockpb/v3lock.pb.h"
 #include "etcd/etcdserver/api/v3lock/v3lockpb/v3lock.grpc.pb.h"
+#include "etcd/mvcc/mvccpb/kv.pb.h"
+#include "etcd/mvcc/mvccpb/kv.grpc.pb.h"
 
 #include <ctime>
 #include <thread>
@@ -73,7 +75,7 @@ namespace etcd {
   long long Client::LeaseId() const {
     return lease_id_;
   };
-  
+
     // put/get
   grpc::Status Client::Get(const std::string& key, std::string& value, long long * rev){
     if (not Connected()) {
@@ -127,7 +129,7 @@ namespace etcd {
       //failed to connect
       return UNAVAILABLE_STATUS;
     }
-    
+
     std::shared_ptr<etcdserverpb::KV::Stub> stub = etcdserverpb::KV::NewStub(channel_);
     grpc::ClientContext context;
     etcdserverpb::RangeRequest req;
@@ -155,12 +157,63 @@ namespace etcd {
     return status;
   }
 
+  grpc::Status Client::Watch(const std::string& prefix, EventWatcher& watcher) {
+    if (not Connected()) {
+      //failed to connect
+      return UNAVAILABLE_STATUS;
+    }
+    std::unique_ptr<etcdserverpb::Watch::Stub> stub = etcdserverpb::Watch::NewStub(channel_);
+
+    grpc::ClientContext context;
+    std::shared_ptr<grpc::ClientReaderWriter<etcdserverpb::WatchRequest, etcdserverpb::WatchResponse>> stream(stub->Watch(&context));
+    etcdserverpb::WatchRequest wreq;
+    etcdserverpb::WatchResponse res;
+    std::string key_end = prefix;
+    key_end.push_back(0xFF);
+    grpc::Status status;
+    do {
+      wreq.mutable_create_request()->set_key(prefix);
+      wreq.mutable_create_request()->set_range_end(key_end);
+
+      if (not stream->Write(wreq)) {
+        stream->Finish();
+        LOG(FATAL) << "Can't write to stream";
+      }
+      if (not stream->Read(&res)) {
+        stream->Finish();
+        LOG(FATAL) << "Can't read from stream";
+      }
+
+      // Handle data read!
+      std::vector<KeyValueEvent> events;
+      for (mvccpb::Event event : res.events()) {
+        enum KeyValueEvent::EventType et;
+        if (event.type() == mvccpb::Event::PUT) {
+          et = KeyValueEvent::PUT;
+        } else if (event.type() == mvccpb::Event::DELETE) {
+          et = KeyValueEvent::DELETE;
+        }
+        struct KeyValueEvent e(event.kv().key(),
+                               event.kv().value(),
+                               event.kv().version(),
+                               event.kv().lease(),
+                               et);
+        events.push_back(e);
+      }
+      if (not watcher.HandleEvents(events) ) {
+        LOG(ERROR) << "Error while handling events";
+      }
+
+      wreq.mutable_create_request()->set_watch_id(res.watch_id());
+    } while(true);
+    return status;
+  }
   grpc::Status Client::Lock(const std::string& name, unsigned int timeout_ms){
     if (not Connected()) {
       //failed to connect
       return UNAVAILABLE_STATUS;
     }
-    
+
     std::unique_ptr<v3lockpb::Lock::Stub> stub = v3lockpb::Lock::NewStub(channel_);
     grpc::ClientContext context;
     // https://grpc.io/blog/deadlines
@@ -203,7 +256,7 @@ namespace etcd {
   bool Client::HasLock(const std::string& name) {
     return lock_keys_.find(name) != lock_keys_.end();
   }
-  
+
   // As this is a synchronous API and returns when keepalive failed
   grpc::Status Client::KeepAlive(bool forever) {
     if (not Connected()) {
@@ -231,7 +284,7 @@ namespace etcd {
         state_ = DISCONNECTED;
         return stream->Finish();
       }
-      
+
       lease_limit_ = lease_start + res.ttl() * 1000; // hard coded
       // std::cerr << "ok" <<       res.id()         << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(res.ttl() * 1000 / 2));
@@ -260,5 +313,5 @@ namespace etcd {
     now += t.tv_nsec / 1000000;
     return now;
   }
-  
+
 } // namespace etcd

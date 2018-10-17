@@ -5,6 +5,27 @@
 #include <grpc++/grpc++.h>
 
 namespace etcd {
+  struct KeyValueEvent {
+    std::string key;
+    std::string value;
+    long long int version;
+    long long int lease;
+    enum EventType { PUT = 0, DELETE } event_type;
+
+    KeyValueEvent(const std::string& key, const std::string& value,
+                  long long int version, long long int lease,
+                  enum EventType event_type):
+      key(key), value(value), version(version), lease(lease), event_type(event_type){
+    }
+  };
+
+  class EventWatcher {
+  public:
+    EventWatcher(){}
+    virtual ~EventWatcher(){}
+
+    virtual bool HandleEvents(const std::vector<KeyValueEvent>&) = 0;
+  };
 
   class Client final {
   public:
@@ -17,7 +38,7 @@ namespace etcd {
     bool Connected() const ;
 
     long long LeaseId() const;
-    
+
     // only single key with exact match, returning version
     grpc::Status Get(const std::string& key, std::string& value, long long * rev);
     // overwrite any key
@@ -25,6 +46,8 @@ namespace etcd {
                      bool ephemeral=true);
     grpc::Status Delete(const std::string& key, long long rev);
     grpc::Status List(const std::string& prefix, std::vector<std::pair<std::string, std::string>>&);
+
+    grpc::Status Watch(const std::string& prefix, EventWatcher& watcher);
 
     grpc::Status Lock(const std::string& name, unsigned int timeout_ms);
     grpc::Status Unlock(const std::string& name);

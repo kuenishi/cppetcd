@@ -55,8 +55,8 @@ namespace etcd {
       lease_id_ = res.id();
       state_ = CONNECTED;
       lease_limit_ = lease_start + 5000; // hard coded
-      std::cout << "connected: client id=" << res.id() << " ttl=" << res.ttl() << "sec" << std::endl;
-      std::cout <<  "header: cluster_id=" << res.header().cluster_id() << " rev=" << res.header().revision() << std::endl;
+      std::cerr << "connected: client id=" << res.id() << " ttl=" << res.ttl() << "sec" << std::endl;
+      std::cerr << "header: cluster_id=" << res.header().cluster_id() << " rev=" << res.header().revision() << std::endl;
       return status;
     }
     // no host available
@@ -68,8 +68,10 @@ namespace etcd {
     return grpc::Status::OK;
   }
   bool Client::Connected() const {
-    long timeout_exceed = lease_limit_ - now();
-    return (not channel_) && state_ == CONNECTED && (timeout_exceed < 0);
+    long timeout_exceed = now() - lease_limit_;
+    //std::cerr << (!!channel_) << "|" << state_ << "?" << CONNECTED << "|" << timeout_exceed
+    //          << "|" << lease_limit_ << "|" << now()  << "|" << timeout_exceed << std::endl;
+    return (!!channel_) && state_ == CONNECTED && (timeout_exceed < 0);
   }
 
   long long Client::LeaseId() const {
@@ -143,7 +145,7 @@ namespace etcd {
     if (not status.ok()) {
       std::cerr << status.error_message() << std::endl;
     }
-    std::cerr << res.count() << std::endl;
+    // std::cerr << res.count() << std::endl;
 
     out.clear();
     for (auto kv : res.kvs()) {
@@ -167,18 +169,18 @@ namespace etcd {
     grpc::ClientContext context;
     std::shared_ptr<grpc::ClientReaderWriter<etcdserverpb::WatchRequest, etcdserverpb::WatchResponse>> stream(stub->Watch(&context));
     etcdserverpb::WatchRequest wreq;
-    etcdserverpb::WatchResponse res;
     std::string key_end = prefix;
     key_end.push_back(0xFF);
     grpc::Status status;
-    do {
-      wreq.mutable_create_request()->set_key(prefix);
-      wreq.mutable_create_request()->set_range_end(key_end);
+    wreq.mutable_create_request()->set_key(prefix);
+    wreq.mutable_create_request()->set_range_end(key_end);
 
-      if (not stream->Write(wreq)) {
-        stream->Finish();
-        LOG(FATAL) << "Can't write to stream";
-      }
+    if (not stream->Write(wreq)) {
+      stream->Finish();
+      LOG(FATAL) << "Can't write to stream";
+    }
+    do {
+      etcdserverpb::WatchResponse res;
       if (not stream->Read(&res)) {
         stream->Finish();
         LOG(FATAL) << "Can't read from stream";
@@ -200,13 +202,15 @@ namespace etcd {
                                et);
         events.push_back(e);
       }
-      if (not watcher.HandleEvents(events) ) {
-        LOG(ERROR) << "Error while handling events";
+      watcher.HandleEvents(events);
+      if (watcher.StopHandling()) {
+        LOG(INFO) << "Watch stopped by application";
+        return grpc::Status::OK;
       }
 
-      wreq.mutable_create_request()->set_watch_id(res.watch_id());
+      // wreq.mutable_create_request()->set_watch_id(res.watch_id());
     } while(true);
-    return status;
+    return grpc::Status::OK;
   }
   grpc::Status Client::Lock(const std::string& name, unsigned int timeout_ms){
     if (not Connected()) {
@@ -290,6 +294,7 @@ namespace etcd {
       std::this_thread::sleep_for(std::chrono::milliseconds(res.ttl() * 1000 / 2));
 
     } while (forever && state_ == CONNECTED);
+    // TODO: do we need to disconnect here?
     return Disconnect();
   }
 

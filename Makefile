@@ -5,6 +5,7 @@ TEST_SOURCES=$(wildcard test/*.cc)
 TEST_RUNNER=test_runner
 TEST_OBJECTS=$(TEST_SOURCES:.cc=.o)
 CC_OBJECTS=src/cppetcd.o src/etcd/etcdserver/etcdserverpb/rpc.pb.o src/etcd/etcdserver/etcdserverpb/rpc.grpc.pb.o \
+src/etcd/etcdserver/api/v3lock/v3lockpb/v3lock.pb.o src/etcd/etcdserver/api/v3lock/v3lockpb/v3lock.grpc.pb.o \
 src/gogoproto/gogo.pb.o src/google/api/http.pb.o src/google/api/annotations.pb.o \
 src/etcd/auth/authpb/auth.pb.o src/etcd/mvcc/mvccpb/kv.pb.o
 CC_TARGET=libcppetcd.so

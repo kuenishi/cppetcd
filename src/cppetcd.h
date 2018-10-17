@@ -24,7 +24,8 @@ namespace etcd {
     EventWatcher(){}
     virtual ~EventWatcher(){}
 
-    virtual bool HandleEvents(const std::vector<KeyValueEvent>&) = 0;
+    virtual void HandleEvents(const std::vector<KeyValueEvent>&) = 0;
+    virtual bool StopHandling() const = 0;
   };
 
   class Client final {

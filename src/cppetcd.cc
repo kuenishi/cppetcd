@@ -150,7 +150,8 @@ namespace etcd {
     out.clear();
     for (auto kv : res.kvs()) {
       std::cerr << kv.key() << " " << kv.value() << std::endl;
-      out.push_back(std::pair<std::string, std::string>(kv.key(), kv.value()));
+      std::string key = kv.key().substr(prefix.size(), kv.key().size());
+      out.push_back(std::pair<std::string, std::string>(key, kv.value()));
     }
     if (res.more()) {
       //....

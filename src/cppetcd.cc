@@ -94,10 +94,11 @@ namespace etcd {
     if (not status.ok()) {
       std::cerr << status.error_message() << std::endl;
     }
-    std::cerr << res.count() << std::endl;
 
     for (auto kv : res.kvs()) {
-      *rev = kv.version();
+      if (rev != nullptr) {
+        *rev = kv.version();
+      }
       value = kv.value();
       return status;
     }

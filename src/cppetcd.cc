@@ -124,7 +124,23 @@ namespace etcd {
     return status;
   }
   grpc::Status Client::Delete(const std::string& key, long long rev){
-    return UNINPLEMENTED_STATUS;
+    if (not Connected()) {
+      //failed to connect
+      return UNAVAILABLE_STATUS;
+    }
+    std::shared_ptr<etcdserverpb::KV::Stub> stub = etcdserverpb::KV::NewStub(channel_);
+    grpc::ClientContext context;
+    etcdserverpb::DeleteRangeRequest req;
+    etcdserverpb::DeleteRangeResponse res;
+    req.set_key(key);
+
+    grpc::Status status = stub->DeleteRange(&context, req, &res);
+    if (not status.ok()) {
+      LOG(ERROR) << "Failed to put: " << status.error_message();
+    } else if (res.deleted() != 1) {
+      LOG(ERROR) << "Number deleted keys != 0 actully:" << res.deleted();
+    }
+    return status;
   }
   grpc::Status Client::List(const std::string& prefix,
                             std::vector<std::pair<std::string, std::string>>& out){

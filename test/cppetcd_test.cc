@@ -51,6 +51,13 @@ namespace {
     // cerr << "Error reason: " << status.error_message() << " " << status.error_details() << endl;
     ASSERT_EQ(grpc::StatusCode::NOT_FOUND, status.error_code());
     ASSERT_EQ(std::string(""), value);
+
+    status = client.Delete(TEST_PREFIX+"hoge", 0);
+    ASSERT_TRUE(status.ok());
+    status = client.Get(TEST_PREFIX+"hoge", value, &rev);
+    ASSERT_EQ(grpc::StatusCode::NOT_FOUND, status.error_code());
+    ASSERT_EQ(std::string(""), value);
+
     ASSERT_TRUE(client.Disconnect().ok());
   }
 

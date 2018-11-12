@@ -92,6 +92,7 @@ namespace etcd {
     grpc::Status status = stub->Range(&context, req, &res);
     if (not status.ok()) {
       LOG(ERROR) << "Failed to get " << key << ": " << status.error_message();
+      return status;
     }
 
     for (auto kv : res.kvs()) {
@@ -170,6 +171,7 @@ namespace etcd {
     }
     if (res.more()) {
       //....
+      LOG(WARNING) << "more than expected:" << res.more();
     }
     // no key found.
     return status;

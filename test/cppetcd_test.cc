@@ -77,7 +77,9 @@ namespace {
     std::vector<std::pair<std::string, std::string>> out;
     ASSERT_TRUE(client.List(TEST_PREFIX+"hoge", out).ok());
     ASSERT_EQ(2, out.size());
+    ASSERT_EQ(TEST_PREFIX+"hoge", out.at(0).first);
     ASSERT_EQ(std::string("val"), out.at(0).second);
+    ASSERT_EQ(TEST_PREFIX+"hoge2", out.at(1).first);
     ASSERT_EQ(std::string("val2"), out.at(1).second);
     ASSERT_TRUE(client.Disconnect().ok());
   }

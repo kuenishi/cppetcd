@@ -9,7 +9,6 @@
 #include <ctime>
 #include <thread>
 
-#include <iostream>
 #include <glog/logging.h>
 
 #define UNINPLEMENTED_STATUS (grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "Not Implemented Yet"))
@@ -20,7 +19,7 @@ namespace etcd {
     lease_id_(0), hosts_(hosts), state_(DISCONNECTED)
   {
     if (hosts_.empty()) {
-      throw 2;
+      LOG(FATAL) << "Empty host list given";
     }
   }
   Client::~Client() {}
@@ -55,8 +54,8 @@ namespace etcd {
       lease_id_ = res.id();
       state_ = CONNECTED;
       lease_limit_ = lease_start + 5000; // hard coded
-      std::cerr << "connected: client id=" << res.id() << " ttl=" << res.ttl() << "sec" << std::endl;
-      std::cerr << "header: cluster_id=" << res.header().cluster_id() << " rev=" << res.header().revision() << std::endl;
+      LOG(INFO) << "cppetcd connected: client id=" << res.id() << " ttl=" << res.ttl() << "sec";
+      DLOG(INFO) <<  "header: cluster_id=" << res.header().cluster_id() << " rev=" << res.header().revision();
       return status;
     }
     // no host available
@@ -92,7 +91,7 @@ namespace etcd {
     req.set_limit(1);
     grpc::Status status = stub->Range(&context, req, &res);
     if (not status.ok()) {
-      std::cerr << status.error_message() << std::endl;
+      LOG(ERROR) << "Failed to get " << key << ": " << status.error_message();
     }
 
     for (auto kv : res.kvs()) {
@@ -160,15 +159,14 @@ namespace etcd {
 
     grpc::Status status = stub->Range(&context, req, &res);
     if (not status.ok()) {
-      std::cerr << status.error_message() << std::endl;
+      LOG(ERROR) << "Failed range request:" << status.error_message();
+      return status;
     }
-    // std::cerr << res.count() << std::endl;
 
     out.clear();
     for (auto kv : res.kvs()) {
-      std::cerr << kv.key() << " " << kv.value() << std::endl;
-      std::string key = kv.key().substr(prefix.size(), kv.key().size());
-      out.push_back(std::pair<std::string, std::string>(key, kv.value()));
+      DLOG(INFO) << kv.key() << " " << kv.value();
+      out.push_back(std::pair<std::string, std::string>(kv.key(), kv.value()));
     }
     if (res.more()) {
       //....
@@ -296,13 +294,13 @@ namespace etcd {
       unsigned long lease_start = now();
       if (not stream->Write(req)) {
         //write fail
-        std::cerr << "write fail" << std::endl;
+        LOG(ERROR) << "write fail";
         state_ = DISCONNECTED;
         return stream->Finish();
       }
       if (not stream->Read(&res)) {
         //read fail
-        std::cerr << "read fail" << std::endl;
+        LOG(ERROR) << "read fail";
         state_ = DISCONNECTED;
         return stream->Finish();
       }

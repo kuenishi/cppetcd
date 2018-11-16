@@ -166,7 +166,7 @@ namespace etcd {
 
     out.clear();
     for (auto kv : res.kvs()) {
-      DLOG(INFO) << kv.key() << " " << kv.value();
+      // DLOG(INFO) << kv.key() << " " << kv.value();
       out.push_back(std::pair<std::string, std::string>(kv.key(), kv.value()));
     }
     if (res.more()) {

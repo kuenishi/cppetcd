@@ -22,6 +22,7 @@ namespace {
   };
 
   TEST_F(ClientTest, Smoke) {
+
     std::vector<std::string> hosts;
     hosts.push_back("127.0.0.1:2379");
 
@@ -111,6 +112,27 @@ namespace {
     status = client.Unlock(l1);
     // ASSERT_EQ(grpc::StatusCode::FAILED_PRECONDITION, status.error_code());
     ASSERT_FALSE(status.ok());
+    ASSERT_TRUE(client.Disconnect().ok());
+  }
+
+  TEST_F(ClientTest, Lock2) {
+    std::vector<std::string> hosts;
+    hosts.push_back("127.0.0.1:2379");
+    // hosts.push_back("10.16.4.77:2379");
+    etcd::Client client(hosts);
+    grpc::Status status;
+    status = client.Connect();
+    ASSERT_TRUE(status.ok());
+
+    std::string l1 = "etcd://127.0.0.1:2379/hogehoge";
+    // std::string l1 = "etcd://10.16.4.77:2379/hogehoge";
+    status = client.Lock(l1, 1000u);
+    ASSERT_TRUE(status.ok());
+    ASSERT_TRUE(client.HasLock(l1));
+    status = client.Unlock(l1);
+    // ASSERT_EQ(grpc::StatusCode::FAILED_PRECONDITION, status.error_code());
+    ASSERT_TRUE(status.ok());
+
     ASSERT_TRUE(client.Disconnect().ok());
   }
 
